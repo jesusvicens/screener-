@@ -22,6 +22,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python actualizar.py
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}   # opcional: «Nombre email»; si no, uno genérico
       - name: Publicar en la rama «datos»
         run: |
           cd out

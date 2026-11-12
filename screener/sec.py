@@ -19,7 +19,7 @@ import requests
 CACHE_DIR = Path(os.environ.get("SCREENER_CACHE", Path(__file__).resolve().parent.parent / "data" / "cache"))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_UA = "Screener publico screener@users.noreply.github.com"
+DEFAULT_UA = "Screener personal contacto@example.com"
 
 _lock = threading.Lock()
 _last_call = [0.0]

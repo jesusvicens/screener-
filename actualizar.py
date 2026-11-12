@@ -13,6 +13,8 @@ def main():
     mk.to_parquet(out / "mercado.parquet")
     print(f"Precios: {len(mk)} acciones")
     base = datos.build_base()
+    if len(base) < 3000:  # la SEC no ha respondido bien: mejor fallar que publicar una tabla vacía
+        raise SystemExit(f"La SEC solo ha devuelto {len(base)} empresas")
     base.to_parquet(out / "base.parquet")
     print(f"Fundamentales: {len(base)} empresas")
 

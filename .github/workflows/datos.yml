@@ -1,0 +1,33 @@
+name: Datos (cada noche)
+
+on:
+  schedule:
+    - cron: "41 22 * * 1-5"   # de lunes a viernes, tras el cierre de Wall Street
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/datos.yml", "actualizar.py", "screener/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  datos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python actualizar.py
+      - name: Publicar en la rama «datos»
+        run: |
+          cd out
+          git init -q -b datos
+          git config user.name "datos-bot"
+          git config user.email "datos-bot@users.noreply.github.com"
+          git add .
+          git commit -qm "Datos $(date -u +%F)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" datos

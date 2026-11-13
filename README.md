@@ -1,6 +1,6 @@
 # Screener
 
-Screener sencillo de las cotizadas de EE. UU. con datos públicos y gratuitos:
+Screener de las cotizadas de EE. UU. con datos públicos y gratuitos:
 
 - **Cuentas:** SEC (XBRL, «frames»): ventas, beneficio, BPA, flujo de caja, balance… de unas 5.000 empresas.
 - **Precios y sectores:** screener público de Nasdaq.

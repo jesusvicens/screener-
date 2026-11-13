@@ -29,7 +29,63 @@ def cargar(nombre: str) -> pd.DataFrame | None:
         return None
 
 
+# ---------------------------------------------------------------- ficha de empresa (se abre en otra pestaña: ?ticker=XXX)
+def ficha(df: pd.DataFrame, t: str):
+    fila = df[df["Ticker"] == t]
+    if fila.empty:
+        st.error(f"No encuentro {t}.")
+        return
+    r = fila.iloc[0]
+    st.title(f"{r['Empresa']} ({t})")
+    st.caption(" · ".join(str(x) for x in (r.get("Sector"), r.get("Industria"), r.get("Mercado")) if x and x != "—"))
+
+    def fmt(m):
+        v = pd.to_numeric(pd.Series([r.get(m)]), errors="coerce").iloc[0]
+        if pd.isna(v):
+            return "—"
+        k = datos.KIND.get(m)
+        if k == "pct":
+            return f"{v * 100:.1f} %".replace(".", ",")
+        if k == "x":
+            return f"{v:.1f}".replace(".", ",")
+        if k == "m":
+            return f"{v:,.0f}".replace(",", ".")
+        if k == "ps":
+            return f"{v:.2f}".replace(".", ",")
+        return f"{v:.0f}"
+
+    c = st.columns(5)
+    for col, m in zip(c, ["Precio", "Capitalización (M$)", "PER", "P/FCF", "Rent. dividendo"]):
+        col.metric(m, fmt(m))
+
+    Y = int(r["Año datos"])
+    serie = lambda k: [] if r.get(k) is None else list(r.get(k))  # noqa: E731
+    rev, eps = serie("_s_rev"), serie("_s_eps")
+    anos = [str(Y - len(rev) + 1 + i) for i in range(len(rev))]
+    hist = pd.DataFrame({"Año": anos, "Ventas (M$)": [None if (x is None or pd.isna(x)) else x / 1e6 for x in rev],
+                         "BPA diluido ($)": [None if (x is None or pd.isna(x)) else x for x in eps]}).set_index("Año")
+    g = st.columns(2)
+    g[0].markdown("**Ventas (M$)**")
+    g[0].bar_chart(hist["Ventas (M$)"])
+    g[1].markdown("**BPA diluido ($)**")
+    g[1].bar_chart(hist["BPA diluido ($)"])
+
+    grupos: dict[str, list[str]] = {}
+    for m, grupo, _k, _d in datos.METRICS:
+        if grupo not in ("Tamaño",) and m not in ("Precio",):
+            grupos.setdefault(grupo, []).append(m)
+    cols = st.columns(3)
+    for i, (grupo, ms) in enumerate(grupos.items()):
+        with cols[i % 3]:
+            st.markdown(f"**{grupo}**")
+            st.dataframe(pd.DataFrame({"": ms, "Valor": [fmt(m) for m in ms]}).set_index(""), width="stretch")
+    st.caption(f"Cuentas de la SEC del ejercicio {Y}; precio de Nasdaq.")
+
+
 base, mk = cargar("base.parquet"), cargar("mercado.parquet")
+if "ticker" in st.query_params and base is not None:
+    ficha(datos.combine(base, mk), st.query_params["ticker"].upper())
+    st.stop()
 st.title("Screener")
 if base is None:
     st.warning("Aún no hay datos. Se generan cada noche con GitHub Actions (o ejecuta `python actualizar.py`).")
@@ -72,7 +128,8 @@ for m in COLS:
     if m in datos.KIND:
         vista[m] = pd.to_numeric(vista[m], errors="coerce") * (100 if datos.KIND[m] == "pct" else 1)
 
-cfg = {}
+vista["Ticker"] = "?ticker=" + vista["Ticker"].astype(str)
+cfg = {"Ticker": st.column_config.LinkColumn("Ticker", display_text=r"\?ticker=(.*)", help="Abre la ficha en otra pestaña")}
 for m in COLS:
     k = datos.KIND.get(m)
     if k == "pct":
@@ -84,6 +141,6 @@ for m in COLS:
     elif k == "ps":
         cfg[m] = st.column_config.NumberColumn(m, format="%.2f", help=datos.HELP.get(m))
 
-st.markdown(f"**{len(tabla):,} empresas**".replace(",", "."))
+st.markdown(f"**{len(tabla):,} empresas** · pulsa un ticker para abrir su ficha".replace(",", ".", 1))
 st.dataframe(vista, column_config=cfg, hide_index=True, width="stretch", height=650)
 st.download_button("Descargar CSV", tabla.to_csv(index=False).encode("utf-8"), "screener.csv", "text/csv")
